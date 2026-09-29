@@ -1,2 +1,4 @@
+anthropic>=1.9,<2
 pydantic>=2,<3
+python-dotenv>=1
 pytest>=8
