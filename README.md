@@ -18,7 +18,7 @@ A Python CLI application that analyzes a job offer, compares it with a resume, a
 ## Progress
 
 - [x] Project structure
-- [ ] Pydantic data models (`models.py`) and their tests
+- [x] Pydantic data models (`models.py`) and their tests
 - [ ] LLM client (`llm_client.py`)
 - [ ] Job offer analysis (`analyzer.py`)
 - [ ] Command-line interface (`cli.py`)
@@ -62,6 +62,7 @@ ai-job-analyzer/
 ├── job_offers/           # job offers as text files
 │   └── example.txt
 ├── requirements.txt      # Python dependencies
+├── pytest.ini            # pytest configuration
 ├── .env.example          # configuration template (no secrets)
 ├── .gitignore
 └── README.md
