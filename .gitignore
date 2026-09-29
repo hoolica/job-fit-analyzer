@@ -1,0 +1,12 @@
+# Python virtual environment
+.venv/
+
+# Python auto-generated files
+__pycache__/
+*.pyc
+
+# Secrets (API keys, passwords)
+.env
+
+# macOS system files
+.DS_Store
