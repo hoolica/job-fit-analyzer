@@ -31,6 +31,14 @@ def clean_payload() -> dict:
             "source_text": "75 000 $ - 90 000 $",
         },
         "benefits": ["Remote Fridays"],
+        "requirements": [
+            {
+                "kind": "language",
+                "description": "English",
+                "importance": "required",
+                "source_text": "Knowledge of English is required",
+            },
+        ],
     }
 
 
@@ -228,3 +236,66 @@ def test_skill_with_blank_name_is_dropped():
     result = normalize_job_analysis(make_analysis(skills=skills))
 
     assert [s.name for s in result.skills] == ["Python"]
+
+
+# --- Requirement normalization ---
+
+
+def requirement(
+    description: str, importance: str = "required", kind: str = "education", source_text: str = "quote"
+) -> dict:
+    return {
+        "kind": kind,
+        "description": description,
+        "importance": importance,
+        "source_text": source_text,
+    }
+
+
+def test_requirement_text_is_cleaned():
+    raw = requirement("  Degree  in\nComputer Science ", source_text="  Degree in\n  CS  ")
+
+    result = normalize_job_analysis(make_analysis(requirements=[raw]))
+
+    assert result.requirements[0].description == "Degree in Computer Science"
+    assert result.requirements[0].source_text == "Degree in\n  CS"
+
+
+@pytest.mark.parametrize("field", ["description", "source_text"])
+def test_requirement_with_blank_text_is_dropped(field):
+    blank = requirement("English", kind="language")
+    blank[field] = "   "
+
+    result = normalize_job_analysis(make_analysis(requirements=[blank, requirement("Degree")]))
+
+    assert [r.description for r in result.requirements] == ["Degree"]
+
+
+@pytest.mark.parametrize(
+    "first, second, expected",
+    [
+        ("required", "preferred", "required"),
+        ("preferred", "required", "required"),
+        ("preferred", "preferred", "preferred"),
+    ],
+)
+def test_duplicate_requirements_required_wins(first, second, expected):
+    requirements = [
+        requirement("Degree in CS", first, source_text="first quote"),
+        requirement("degree in cs", second, source_text="second quote"),
+    ]
+
+    result = normalize_job_analysis(make_analysis(requirements=requirements))
+
+    [merged] = result.requirements
+    assert merged.importance == expected
+    assert merged.description == "Degree in CS"
+    assert merged.source_text == "first quote"
+
+
+def test_requirements_of_different_kinds_are_not_merged():
+    requirements = [requirement("English", kind="language"), requirement("English", kind="other")]
+
+    result = normalize_job_analysis(make_analysis(requirements=requirements))
+
+    assert [r.kind for r in result.requirements] == ["language", "other"]

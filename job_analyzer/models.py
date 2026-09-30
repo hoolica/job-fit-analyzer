@@ -16,9 +16,29 @@ class StrictModel(BaseModel):
 
 
 class Skill(StrictModel):
+    """A capability the offer asks for.
+
+    category "language" means a programming language only; spoken or
+    written languages are Requirements of kind "language".
+    """
+
     name: str = Field(min_length=1)
     category: Literal["technical", "tool", "language", "soft_skill"]
     required: bool
+
+
+class Requirement(StrictModel):
+    """An explicit candidate requirement that is not a skill or years of experience."""
+
+    kind: Literal["education", "eligibility", "language", "other"]
+    description: str = Field(min_length=1)
+    importance: Literal["required", "preferred"]
+    source_text: str = Field(min_length=1)
+
+    @property
+    def is_hard_gate(self) -> bool:
+        """Eligibility gate, decided by this rule and never by the LLM."""
+        return self.kind == "eligibility" and self.importance == "required"
 
 
 class Experience(StrictModel):
@@ -74,3 +94,4 @@ class JobAnalysis(StrictModel):
     location: Location
     salary: Salary
     benefits: list[str]
+    requirements: list[Requirement]

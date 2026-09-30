@@ -61,6 +61,26 @@ def full_payload() -> dict:
             "source_text": "75 000 $ – 90 000 $",
         },
         "benefits": ["Assurance collective"],
+        "requirements": [
+            {
+                "kind": "education",
+                "description": "Diplôme en informatique ou expérience équivalente",
+                "importance": "required",
+                "source_text": "Diplôme en informatique ou expérience équivalente",
+            },
+            {
+                "kind": "eligibility",
+                "description": "Citoyen canadien ou résident permanent",
+                "importance": "required",
+                "source_text": "Citoyens canadiens et résidents permanents seulement",
+            },
+            {
+                "kind": "language",
+                "description": "Anglais",
+                "importance": "preferred",
+                "source_text": "L'anglais est un atout",
+            },
+        ],
     }
 
 
@@ -81,6 +101,7 @@ def empty_payload() -> dict:
             "source_text": None,
         },
         "benefits": [],
+        "requirements": [],
     }
 
 
@@ -257,15 +278,50 @@ def test_format_empty_analysis():
 
     for label in ("Title", "Company", "Contract", "Location", "Experience", "Salary"):
         assert field_line(output, label) == NOT_SPECIFIED
-    for section in ("Required skills", "Nice-to-have skills", "Responsibilities", "Benefits"):
+    for section in (
+        "Required skills",
+        "Nice-to-have skills",
+        "Other requirements",
+        "Responsibilities",
+        "Benefits",
+    ):
         assert f"{section}\n  {NONE_LISTED}" in output
 
 
 def test_format_splits_required_and_optional_skills_in_order():
     output = format_job_analysis(make_analysis())
 
-    assert "Required skills (2)\n  - Python (language)\n  - PostgreSQL (tool)" in output
+    assert "Required skills (2)\n  - Python (programming language)\n  - PostgreSQL (tool)" in output
     assert "Nice-to-have skills (2)\n  - Docker (tool)\n  - Teamwork (soft skill)" in output
+
+
+def test_format_requirements_with_importance_kind_and_hard_gate():
+    output = format_job_analysis(make_analysis())
+
+    assert (
+        "Other requirements (3)\n"
+        "  - [required] Education: Diplôme en informatique ou expérience équivalente\n"
+        "  - [required] Eligibility: Citoyen canadien ou résident permanent (hard requirement)\n"
+        "  - [preferred] Language: Anglais"
+    ) in output
+
+
+def test_preferred_eligibility_is_not_marked_as_hard_requirement():
+    analysis = make_analysis(
+        requirements=[
+            {
+                "kind": "eligibility",
+                "description": "Security clearance",
+                "importance": "preferred",
+                "source_text": "Security clearance is an asset",
+            }
+        ]
+    )
+
+    output = format_job_analysis(analysis)
+
+    assert "  - [preferred] Eligibility: Security clearance\n" in output + "\n"
+    assert "hard requirement" not in output
 
 
 @pytest.mark.parametrize(

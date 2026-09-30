@@ -15,7 +15,14 @@ from dotenv import load_dotenv
 
 from job_analyzer.analyzer import analyze_job_offer
 from job_analyzer.llm_client import LLMClientError, LLMConfigurationError
-from job_analyzer.models import Experience, JobAnalysis, Location, Salary, Skill
+from job_analyzer.models import (
+    Experience,
+    JobAnalysis,
+    Location,
+    Requirement,
+    Salary,
+    Skill,
+)
 
 EXIT_OK = 0
 EXIT_ANALYSIS_ERROR = 1
@@ -43,8 +50,14 @@ PERIOD_LABELS = {
 CATEGORY_LABELS = {
     "technical": "technical",
     "tool": "tool",
-    "language": "language",
+    "language": "programming language",
     "soft_skill": "soft skill",
+}
+REQUIREMENT_KIND_LABELS = {
+    "education": "Education",
+    "eligibility": "Eligibility",
+    "language": "Language",
+    "other": "Other",
 }
 
 Analyze = Callable[[str], JobAnalysis]
@@ -152,6 +165,9 @@ def format_job_analysis(analysis: JobAnalysis, *, source: str | None = None) -> 
     optional = [s for s in analysis.skills if not s.required]
     lines += _section("Required skills", [_format_skill(s) for s in required])
     lines += _section("Nice-to-have skills", [_format_skill(s) for s in optional])
+    lines += _section(
+        "Other requirements", [_format_requirement(r) for r in analysis.requirements]
+    )
     lines += _section("Responsibilities", analysis.responsibilities)
     lines += _section("Benefits", analysis.benefits)
 
@@ -166,6 +182,14 @@ def _section(title: str, items: list[str]) -> list[str]:
 
 def _format_skill(skill: Skill) -> str:
     return f"{skill.name} ({CATEGORY_LABELS[skill.category]})"
+
+
+def _format_requirement(requirement: Requirement) -> str:
+    text = (
+        f"[{requirement.importance}] "
+        f"{REQUIREMENT_KIND_LABELS[requirement.kind]}: {requirement.description}"
+    )
+    return f"{text} (hard requirement)" if requirement.is_hard_gate else text
 
 
 def _format_location(location: Location) -> str:

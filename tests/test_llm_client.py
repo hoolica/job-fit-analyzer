@@ -18,8 +18,10 @@ from job_analyzer.llm_client import (
     LLMValidationError,
     create_client,
     extract_job_analysis,
+    output_format_for,
+    request_structured,
 )
-from job_analyzer.models import JobAnalysis
+from job_analyzer.models import JobAnalysis, StrictModel
 
 JOB_TEXT = "Développeur Python H/F - CDI - Paris - 45-55k€"
 
@@ -44,6 +46,7 @@ VALID_ANALYSIS = {
         "source_text": "45-55k€",
     },
     "benefits": [],
+    "requirements": [],
 }
 
 
@@ -292,3 +295,33 @@ def test_missing_api_key_fails_before_any_call(monkeypatch):
 
     with pytest.raises(LLMConfigurationError):
         extract_job_analysis(JOB_TEXT)
+
+
+# --- Generic structured request ---
+
+
+class Note(StrictModel):
+    text: str
+
+
+def test_request_structured_works_with_any_model():
+    client = FakeClient(make_response('{"text": "hello"}'))
+
+    result = request_structured(Note, system="sys", content="<cv>...</cv>", client=client)
+
+    assert result == Note(text="hello")
+    [call] = client.messages.calls
+    assert call["system"] == "sys"
+    assert call["messages"] == [{"role": "user", "content": "<cv>...</cv>"}]
+    assert call["output_config"]["format"] == output_format_for(Note)
+
+
+def test_request_structured_validates_against_the_given_model():
+    client = FakeClient(make_response('{"text": "hello", "extra": 1}'))
+
+    with pytest.raises(LLMValidationError):
+        request_structured(Note, system="sys", content="x", client=client)
+
+
+def test_job_output_format_is_the_generic_one():
+    assert output_format_for(JobAnalysis) is OUTPUT_FORMAT

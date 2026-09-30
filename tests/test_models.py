@@ -1,7 +1,14 @@
 import pytest
 from pydantic import ValidationError
 
-from job_analyzer.models import Experience, JobAnalysis, Location, Salary, Skill
+from job_analyzer.models import (
+    Experience,
+    JobAnalysis,
+    Location,
+    Requirement,
+    Salary,
+    Skill,
+)
 
 
 def valid_payload() -> dict:
@@ -30,6 +37,14 @@ def valid_payload() -> dict:
             "source_text": "45-55k EUR gross per year",
         },
         "benefits": ["Meal vouchers", "Extra paid leave"],
+        "requirements": [
+            {
+                "kind": "education",
+                "description": "Degree in Computer Science",
+                "importance": "required",
+                "source_text": "Degree in Computer Science",
+            },
+        ],
     }
 
 
@@ -56,6 +71,7 @@ def null_payload() -> dict:
             "source_text": None,
         },
         "benefits": [],
+        "requirements": [],
     }
 
 
@@ -140,6 +156,8 @@ def test_min_amount_greater_than_max_amount_is_rejected():
         (("experience", "level"), "expert"),
         (("location", "work_mode"), "full_remote"),
         (("salary", "period"), "weekly"),
+        (("requirements", 0, "kind"), "certification"),
+        (("requirements", 0, "importance"), "mandatory"),
     ],
 )
 def test_invalid_literal_is_rejected(path, value):
@@ -165,6 +183,7 @@ def test_invalid_literal_is_rejected(path, value):
         ("location", "unexpected"),
         ("salary", "unexpected"),
         ("skills", 0, "unexpected"),
+        ("requirements", 0, "unexpected"),
     ],
 )
 def test_extra_field_is_forbidden(path):
@@ -213,6 +232,7 @@ def test_negative_value_is_rejected(path):
         (Experience, "min_years"),
         (Location, "city"),
         (Salary, "currency"),
+        (JobAnalysis, "requirements"),
     ],
 )
 def test_nullable_fields_are_required_in_schema(model, field):
@@ -242,3 +262,40 @@ def test_empty_skill_name_is_rejected():
         JobAnalysis.model_validate(payload)
 
     assert exc_info.value.errors()[0]["type"] == "string_too_short"
+
+
+# --- Requirement ---
+
+
+@pytest.mark.parametrize("field", ["description", "source_text"])
+def test_blank_requirement_text_is_rejected(field):
+    payload = valid_payload()
+    payload["requirements"][0][field] = ""
+
+    with pytest.raises(ValidationError) as exc_info:
+        JobAnalysis.model_validate(payload)
+
+    assert exc_info.value.errors()[0]["type"] == "string_too_short"
+
+
+@pytest.mark.parametrize(
+    "kind, importance, expected",
+    [
+        ("eligibility", "required", True),
+        ("eligibility", "preferred", False),
+        ("education", "required", False),
+        ("language", "required", False),
+        ("other", "required", False),
+    ],
+)
+def test_hard_gate_rule(kind, importance, expected):
+    requirement = Requirement(
+        kind=kind, importance=importance, description="x", source_text="x"
+    )
+
+    assert requirement.is_hard_gate is expected
+
+
+def test_hard_gate_is_not_part_of_the_schema():
+    # The LLM must never be asked to decide what is a hard gate.
+    assert "is_hard_gate" not in str(JobAnalysis.model_json_schema())

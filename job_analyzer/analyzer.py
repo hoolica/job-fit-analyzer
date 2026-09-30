@@ -31,6 +31,7 @@ def normalize_job_analysis(analysis: JobAnalysis) -> JobAnalysis:
     data["skills"] = _deduplicate_skills(data["skills"])
     data["responsibilities"] = _clean_list(data["responsibilities"])
     data["benefits"] = _clean_list(data["benefits"])
+    data["requirements"] = _deduplicate_requirements(data["requirements"])
 
     experience = data["experience"]
     experience["source_text"] = _strip_or_none(experience["source_text"])
@@ -90,4 +91,26 @@ def _deduplicate_skills(skills: list[dict]) -> list[dict]:
             merged[key]["required"] = merged[key]["required"] or skill["required"]
         else:
             merged[key] = {**skill, "name": name}
+    return list(merged.values())
+
+
+def _deduplicate_requirements(requirements: list[dict]) -> list[dict]:
+    """Clean requirements and merge those sharing kind and description.
+
+    A requirement whose description or source_text is blank is dropped.
+    The first occurrence keeps its position, wording and source_text;
+    importance is "required" if any occurrence is required.
+    """
+    merged: dict[tuple[str, str], dict] = {}
+    for requirement in requirements:
+        description = _clean_text(requirement["description"])
+        source_text = _strip_or_none(requirement["source_text"])
+        if description is None or source_text is None:
+            continue
+        key = (requirement["kind"], description.casefold())
+        if key in merged:
+            if requirement["importance"] == "required":
+                merged[key]["importance"] = "required"
+        else:
+            merged[key] = {**requirement, "description": description, "source_text": source_text}
     return list(merged.values())
