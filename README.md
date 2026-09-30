@@ -37,8 +37,12 @@ cp .env.example .env   # then fill in the variables (API key, etc.)
 ## Usage
 
 ```bash
-python3 main.py
+python3 main.py job_offers/example.txt
 ```
+
+The job offer must be a UTF-8 text file. `ANTHROPIC_API_KEY` is read from the environment or from a `.env` file at the project root.
+
+Exit codes: `0` success, `1` analysis failed (API, refusal, invalid output), `2` invalid arguments or input file, `3` missing or rejected API key, `130` interrupted.
 
 ## Tests
 
